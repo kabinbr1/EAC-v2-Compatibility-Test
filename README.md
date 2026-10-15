@@ -3,6 +3,9 @@
 EAC v2 Compatibility Test is a native Qt 6 desktop application that summarizes Linux security
 features detected on the running system.
 
+<img width="2050" height="1164" alt="image" src="https://github.com/user-attachments/assets/6bea683d-e2fa-473b-92d8-e019985999e5" />
+
+
 ## Compatibility requirements
 
 - **Signed kernel and modules:** reports a loaded unsigned module when the kernel
