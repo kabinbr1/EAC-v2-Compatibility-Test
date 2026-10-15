@@ -20,8 +20,12 @@ features detected on the running system.
   suppliers (Canonical, Fedora, Universal Blue, Debian, openSUSE, SUSE Linux
   Enterprise, Rocky Linux, Microsoft, AlmaLinux). A match is a subject-name
   match only—not fingerprint verification, proof of key authenticity, or proof
-  that the certificate signed the current boot. MOK and revoked-certificate
-  databases are not currently checked.
+  that the certificate signed the current boot.
+- **MOK certificates:** parses X.509 certificate entries in shim's runtime
+  `MokListRT` variable. Any detected MOK certificate is reported as incompatible,
+  regardless of signer; a missing, unreadable, or unparseable runtime list is
+  unverified. No detected certificate is positive only when the runtime list
+  was readable and parsed. Revoked-certificate databases are not checked.
 - **Measured Boot:** checks for the TPM firmware event log exposed by securityfs.
 - **IOMMU:** checks for active IOMMU groups and flags known passthrough boot
   options or a passthrough kernel default. It cannot prove the DMA domain selected
@@ -30,7 +34,9 @@ features detected on the running system.
   `integrity` as the active mode; support in kernel config alone is not enough.
 - **Kexec disabled:** positive if both legacy and file-based Kexec interfaces are
   absent from the kernel config. If Kexec is enabled in the kernel but disabled at
-  runtime, the app reports that boot-time disablement could not be verified.
+  runtime, the app reports that boot-time disablement could not be verified. EAC
+  v2 anti-cheat requires Kexec to be disabled; the app displays this requirement
+  when Kexec is detected enabled or its runtime state cannot be verified.
 - **BPF LSM:** checks whether `bpf` appears in the active LSM list, not merely
   whether eBPF is compiled into the kernel.
 

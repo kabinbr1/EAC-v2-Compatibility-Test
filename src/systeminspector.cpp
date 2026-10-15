@@ -115,21 +115,22 @@ QString supplierForCertificate(const QSslCertificate &certificate)
     return {};
 }
 
-struct SupplierDatabaseResult
+struct CertificateDatabaseResult
 {
     bool readable = false;
     bool parsedDatabase = false;
+    int certificateCount = 0;
     QStringList suppliers;
 };
 
-SupplierDatabaseResult inspectSecureBootDatabase()
+CertificateDatabaseResult inspectCertificateDatabase(const QString &variableName)
 {
     static const QByteArray x509Guid = QByteArray::fromHex(
         "a159c0a5e494a74a87b5ab155c2bf072");
     const QString directory = QStringLiteral("/sys/firmware/efi/efivars");
     const QStringList paths = QDir(directory).entryList(
-        {QStringLiteral("db-*")}, QDir::Files | QDir::Readable, QDir::Name);
-    SupplierDatabaseResult result;
+        {variableName + QStringLiteral("-*")}, QDir::Files | QDir::Readable, QDir::Name);
+    CertificateDatabaseResult result;
 
     for (const QString &name : paths) {
         QFile file(QDir(directory).filePath(name));
@@ -166,6 +167,7 @@ SupplierDatabaseResult inspectSecureBootDatabase()
                         contents.mid(entryOffset + 16, signatureSize - 16);
                     const QSslCertificate certificate(certificateData, QSsl::Der);
                     if (!certificate.isNull()) {
+                        ++result.certificateCount;
                         const QString supplier = supplierForCertificate(certificate);
                         if (!supplier.isEmpty() && !result.suppliers.contains(supplier)) {
                             result.suppliers.append(supplier);
@@ -192,7 +194,8 @@ SecurityCheck secureBootSupplierCheck()
                 QStringLiteral("UNVERIFIED")};
     }
 
-    const SupplierDatabaseResult database = inspectSecureBootDatabase();
+    const CertificateDatabaseResult database =
+        inspectCertificateDatabase(QStringLiteral("db"));
     if (!database.readable || !database.parsedDatabase) {
         return {QStringLiteral("Recognized Secure Boot supplier"),
                 QStringLiteral("Enrolled UEFI certificate authority"),
@@ -204,7 +207,7 @@ SecurityCheck secureBootSupplierCheck()
     if (database.suppliers.isEmpty()) {
         return {QStringLiteral("Recognized Secure Boot supplier"),
                 QStringLiteral("Enrolled UEFI certificate authority"),
-                QStringLiteral("No certificate subject matched the configured supplier names. This does not inspect MOK or prove that no trusted supplier certificate exists in another format."),
+                QStringLiteral("No certificate subject matched the configured supplier names. This does not prove that no trusted supplier certificate exists in another format."),
                 CheckStatus::unsupported,
                 QStringLiteral("NO MATCH")};
     }
@@ -215,6 +218,42 @@ SecurityCheck secureBootSupplierCheck()
                 .arg(database.suppliers.join(QStringLiteral(", "))),
             CheckStatus::supported,
             QStringLiteral("SUBJECT MATCH")};
+}
+
+SecurityCheck mokCertificateCheck()
+{
+    if (!QFileInfo(QStringLiteral("/sys/firmware/efi/efivars")).isDir()) {
+        return {QStringLiteral("MOK certificates"),
+                QStringLiteral("No Machine Owner Keys permitted"),
+                QStringLiteral("UEFI variables are unavailable; the shim MOK list cannot be inspected."),
+                CheckStatus::unknown,
+                QStringLiteral("UNVERIFIED")};
+    }
+
+    const CertificateDatabaseResult database =
+        inspectCertificateDatabase(QStringLiteral("MokListRT"));
+    if (!database.readable || !database.parsedDatabase) {
+        return {QStringLiteral("MOK certificates"),
+                QStringLiteral("No Machine Owner Keys permitted"),
+                QStringLiteral("The runtime shim MOK list (MokListRT) could not be read or parsed. This may mean no runtime MOK list is published, or that efivarfs access is restricted."),
+                CheckStatus::unknown,
+                QStringLiteral("UNVERIFIED")};
+    }
+
+    if (database.certificateCount > 0) {
+        return {QStringLiteral("MOK certificates"),
+                QStringLiteral("No Machine Owner Keys permitted"),
+                QStringLiteral("%1 X.509 certificate(s) found in MokListRT. Any enrolled MOK is incompatible with this requirement, including certificates from otherwise recognized signers.")
+                    .arg(database.certificateCount),
+                CheckStatus::unsupported,
+                QStringLiteral("MOK DETECTED")};
+    }
+
+    return {QStringLiteral("MOK certificates"),
+            QStringLiteral("No Machine Owner Keys permitted"),
+            QStringLiteral("No X.509 MOK certificates were found in the readable MokListRT database."),
+            CheckStatus::supported,
+            QStringLiteral("NONE DETECTED")};
 }
 
 SecurityCheck secureBootCheck()
@@ -474,7 +513,7 @@ SecurityCheck kexecCheck()
     if (disabled == QStringLiteral("0")) {
         return {QStringLiteral("Kexec"),
                 QStringLiteral("Kernel replacement loading"),
-                QStringLiteral("Kexec is compiled in and kernel loading is enabled."),
+                QStringLiteral("Kexec is compiled in and kernel loading is enabled. EAC v2 anti-cheat requires Kexec to be disabled; disable it before attempting compatibility."),
                 CheckStatus::unsupported,
                 QStringLiteral("ENABLED")};
     }
@@ -489,7 +528,7 @@ SecurityCheck kexecCheck()
 
     return {QStringLiteral("Kexec"),
             QStringLiteral("Kernel replacement loading"),
-            QStringLiteral("At least one Kexec interface is enabled in kernel config; runtime policy and explicit boot-time disablement cannot be verified."),
+            QStringLiteral("At least one Kexec interface is enabled in kernel config; runtime policy and explicit boot-time disablement cannot be verified. EAC v2 anti-cheat requires Kexec to be disabled."),
             CheckStatus::unknown};
 }
 
@@ -520,6 +559,7 @@ QVector<SecurityCheck> SystemInspector::inspect()
         signedKernelCheck(),
         secureBootCheck(),
         secureBootSupplierCheck(),
+        mokCertificateCheck(),
         tpmCheck(),
         measuredBootCheck(),
         iommuCheck(),
