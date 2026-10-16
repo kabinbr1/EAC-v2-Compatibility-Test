@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=EAC v2 Compatibility Test
+Comment=Inspect Linux security features relevant to EAC v2 compatibility
+Exec=eac-v2-compatibility-test
+Icon=eac-v2-compatibility-test
+Categories=System;Security;Utility;
+Terminal=false

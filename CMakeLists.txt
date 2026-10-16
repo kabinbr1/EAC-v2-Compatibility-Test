@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(EACV2CompatibilityTest VERSION 1.0.0 LANGUAGES CXX)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -20,4 +22,12 @@ target_link_libraries(eac-v2-compatibility-test PRIVATE Qt6::Network Qt6::Widget
 
 install(TARGETS eac-v2-compatibility-test
     RUNTIME DESTINATION bin
+)
+
+install(FILES packaging/eac-v2-compatibility-test.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+install(FILES packaging/eac-v2-compatibility-test.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
 )

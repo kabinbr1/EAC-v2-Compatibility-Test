@@ -53,3 +53,18 @@ cmake -S . -B build
 cmake --build build
 ./build/eac-v2-compatibility-test
 ```
+
+## AppImage
+
+On an x86_64 Linux system with CMake, a C++17 compiler, Qt 6 Network and Widgets
+development files, `qmake6`, `curl`, and `file` installed, build an AppImage
+with:
+
+```sh
+./scripts/build-appimage.sh
+```
+
+The resulting `dist/EAC-v2-Compatibility-Test-x86_64.AppImage` bundles Qt and
+the application. It still relies on compatible host graphics/display libraries
+and a working X11 or XWayland session. The GitHub Actions workflow also builds
+an AppImage on Ubuntu 22.04 and publishes it as a workflow artifact.
