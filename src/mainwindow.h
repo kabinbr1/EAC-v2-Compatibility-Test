@@ -5,6 +5,7 @@
 class QLabel;
 class QGridLayout;
 class QFrame;
+class QEvent;
 
 class MainWindow : public QMainWindow
 {
@@ -16,9 +17,10 @@ public:
 private:
     void refreshChecks();
     void buildUi();
+    void applyPaletteStyles();
+    void changeEvent(QEvent *event) override;
 
     QWidget *m_cardContainer = nullptr;
     QGridLayout *m_grid = nullptr;
     QLabel *m_summaryLabel = nullptr;
-    QLabel *m_kernelLabel = nullptr;
 };

@@ -2,10 +2,14 @@
 
 #include "systeminspector.h"
 
+#include <QApplication>
+#include <QColor>
+#include <QEvent>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPalette>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
@@ -13,6 +17,14 @@
 
 namespace
 {
+QColor blendColors(const QColor &foreground, const QColor &background, qreal amount)
+{
+    return QColor::fromRgbF(
+        foreground.redF() * amount + background.redF() * (1.0 - amount),
+        foreground.greenF() * amount + background.greenF() * (1.0 - amount),
+        foreground.blueF() * amount + background.blueF() * (1.0 - amount));
+}
+
 QString statusText(const SecurityCheck &check)
 {
     const QString label = check.statusLabel.isEmpty() ? QStringLiteral("SUPPORTED") : check.statusLabel;
@@ -94,27 +106,10 @@ void MainWindow::buildUi()
     root->setContentsMargins(34, 28, 34, 24);
     root->setSpacing(22);
 
-    auto *header = new QHBoxLayout;
-    auto *branding = new QVBoxLayout;
-    auto *eyebrow = new QLabel(QStringLiteral("EAC V2 COMPATIBILITY"));
-    eyebrow->setObjectName(QStringLiteral("eyebrow"));
-    branding->addWidget(eyebrow);
-
-    auto *heading = new QLabel(QStringLiteral("Compatibility checks"));
-    heading->setObjectName(QStringLiteral("heading"));
-    branding->addWidget(heading);
-
-    auto *intro = new QLabel(QStringLiteral("Checking the security requirements for protected gameplay."));
-    intro->setObjectName(QStringLiteral("intro"));
-    branding->addWidget(intro);
-    header->addLayout(branding, 1);
-
     auto *refreshButton = new QPushButton(QStringLiteral("↻  Refresh"));
     refreshButton->setObjectName(QStringLiteral("refreshButton"));
     refreshButton->setCursor(Qt::PointingHandCursor);
     connect(refreshButton, &QPushButton::clicked, this, &MainWindow::refreshChecks);
-    header->addWidget(refreshButton, 0, Qt::AlignTop);
-    root->addLayout(header);
 
     auto *summary = new QFrame;
     summary->setObjectName(QStringLiteral("summary"));
@@ -127,6 +122,7 @@ void MainWindow::buildUi()
     m_summaryLabel = new QLabel;
     m_summaryLabel->setObjectName(QStringLiteral("summaryText"));
     summaryLayout->addWidget(m_summaryLabel, 1);
+    summaryLayout->addWidget(refreshButton);
     root->addWidget(summary);
 
     auto *section = new QHBoxLayout;
@@ -154,36 +150,50 @@ void MainWindow::buildUi()
     scrollArea->setWidget(m_cardContainer);
     root->addWidget(scrollArea, 1);
 
-    m_kernelLabel = new QLabel;
-    m_kernelLabel->setObjectName(QStringLiteral("footer"));
-    root->addWidget(m_kernelLabel);
-
     setCentralWidget(central);
+    applyPaletteStyles();
+}
+
+void MainWindow::applyPaletteStyles()
+{
+    const QPalette palette = QApplication::palette();
+    const QColor window = palette.color(QPalette::Window);
+    const QColor windowText = palette.color(QPalette::WindowText);
+    const QColor border = palette.color(QPalette::Mid);
+    const QColor summaryBackground = blendColors(QColor(QStringLiteral("#54d6a0")), window, 0.12);
+    const QColor summaryBorder = blendColors(QColor(QStringLiteral("#54d6a0")), border, 0.45);
+    const QColor cardBackground = palette.color(QPalette::Base);
+    const QColor mutedText = blendColors(windowText, window, 0.65);
+
     setStyleSheet(QStringLiteral(
-        "QMainWindow, #central { background: #10151f; }"
-        "QLabel { color: #e8edf5; }"
-        "#eyebrow { color: #65c9ef; font-size: 11px; font-weight: 700; letter-spacing: 2px; }"
-        "#heading { color: #f2f5fb; font-size: 30px; font-weight: 700; }"
-        "#intro { color: #9aa8bb; font-size: 14px; }"
-        "#refreshButton { color: #d9e6f4; background: #1c2635; border: 1px solid #34445a;"
-        " border-radius: 9px; padding: 10px 15px; font-weight: 600; }"
-        "#refreshButton:hover { background: #26364b; border-color: #5baed0; }"
-        "#summary { background: #182a2c; border: 1px solid #28504a; border-radius: 12px; }"
+        "QMainWindow, #central { background: %1; }"
+        "QLabel { color: %2; }"
+        "#summary { background: %3; border: 1px solid %4; border-radius: 12px; }"
         "#summaryMark { font-size: 18px; }"
-        "#summaryText { color: #cce9dd; font-size: 14px; font-weight: 600; }"
-        "#sectionTitle { color: #f0f3f8; font-size: 17px; font-weight: 700; }"
-        "#legend { color: #8c9bb0; font-size: 11px; }"
-        "#checkCard { background: #171e2b; border: 1px solid #293548; border-radius: 12px; }"
-        "#cardTitle { color: #f0f3f8; font-size: 15px; font-weight: 700; }"
-        "#statusBadge { background: #202a39; border-radius: 7px; padding: 6px 8px;"
+        "#summaryText { color: %2; font-size: 14px; font-weight: 600; }"
+        "#sectionTitle { color: %2; font-size: 17px; font-weight: 700; }"
+        "#legend { color: %6; font-size: 11px; }"
+        "#checkCard { background: %7; border: 1px solid %5; border-radius: 12px; }"
+        "#cardTitle { color: %2; font-size: 15px; font-weight: 700; }"
+        "#statusBadge { background: %7; border-radius: 7px; padding: 6px 8px;"
         " font-size: 10px; font-weight: 700; }"
-        "#cardSubtitle { color: #99a8bc; font-size: 12px; }"
-        "#cardDetail { color: #c4ccda; font-size: 12px; line-height: 1.35; }"
-        "#footer { color: #78879b; font-size: 11px; padding-top: 3px; }"
-        "QScrollArea { background: transparent; }"
-        "QScrollBar:vertical { background: #10151f; width: 8px; margin: 2px; }"
-        "QScrollBar::handle:vertical { background: #344257; border-radius: 4px; min-height: 24px; }"
-        "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"));
+        "#cardSubtitle { color: %6; font-size: 12px; }"
+        "#cardDetail { color: %2; font-size: 12px; }")
+        .arg(window.name())
+        .arg(windowText.name())
+        .arg(summaryBackground.name())
+        .arg(summaryBorder.name())
+        .arg(border.name())
+        .arg(mutedText.name())
+        .arg(cardBackground.name()));
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    QMainWindow::changeEvent(event);
+    if (event->type() == QEvent::ApplicationPaletteChange) {
+        applyPaletteStyles();
+    }
 }
 
 void MainWindow::refreshChecks()
@@ -220,6 +230,4 @@ void MainWindow::refreshChecks()
             .arg(supported)
             .arg(unsupported)
             .arg(unknown));
-    m_kernelLabel->setText(
-        QStringLiteral("Running kernel: %1   ·   Refreshed just now").arg(SystemInspector::kernelRelease()));
 }

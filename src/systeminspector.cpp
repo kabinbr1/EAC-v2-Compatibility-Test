@@ -568,8 +568,3 @@ QVector<SecurityCheck> SystemInspector::inspect()
         bpfLsmCheck(),
     };
 }
-
-QString SystemInspector::kernelRelease()
-{
-    return QSysInfo::kernelVersion();
-}

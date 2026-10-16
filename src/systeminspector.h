@@ -23,5 +23,4 @@ class SystemInspector
 {
 public:
     static QVector<SecurityCheck> inspect();
-    static QString kernelRelease();
 };
